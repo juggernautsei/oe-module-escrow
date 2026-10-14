@@ -23,7 +23,14 @@ $classLoader->registerNamespaceIfNotExists(
 );
 
 /**
- * @global \Symfony\Component\EventDispatcher\EventDispatcherInterface $eventDispatcher
+ * @global \Symfony\Component\EventDispatcher\EventDispatcherInterface|null $eventDispatcher
  */
-$bootstrap = new Bootstrap($eventDispatcher, $GLOBALS['kernel'] ?? null);
-$bootstrap->subscribeToEvents();
+$dispatcher = $eventDispatcher ?? null;
+if ($dispatcher === null && !empty($GLOBALS['kernel']) && method_exists($GLOBALS['kernel'], 'getEventDispatcher')) {
+    $dispatcher = $GLOBALS['kernel']->getEventDispatcher();
+}
+
+if ($dispatcher instanceof \Symfony\Component\EventDispatcher\EventDispatcherInterface) {
+    $bootstrap = new Bootstrap($dispatcher, $GLOBALS['kernel'] ?? null);
+    $bootstrap->subscribeToEvents();
+}

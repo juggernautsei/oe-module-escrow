@@ -18,6 +18,7 @@ use OpenEMR\Core\Kernel;
 use OpenEMR\Events\Core\TwigEnvironmentEvent;
 use OpenEMR\Menu\MenuEvent;
 use OpenEMR\Menu\PatientMenuEvent;
+use OpenEMR\Modules\Escrow\Menu\EscrowMenuItems;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Twig\Environment;
 use Twig\Error\LoaderError;
@@ -56,28 +57,28 @@ class Bootstrap
     public function registerMenuItems(): void
     {
         $this->eventDispatcher->addListener(MenuEvent::MENU_UPDATE, [$this, 'addMainMenuItem']);
-        $this->eventDispatcher->addListener(PatientMenuEvent::MENU_UPDATE, [$this, 'addPatientMenuItem']);
+        // Low priority so we add Escrow and normalize after other modules contribute items.
+        $this->eventDispatcher->addListener(PatientMenuEvent::MENU_UPDATE, [$this, 'addPatientMenuItem'], -1000);
     }
 
     public function addMainMenuItem(MenuEvent $event): MenuEvent
     {
         $menu = $event->getMenu();
-
-        $menuItem = new \stdClass();
-        $menuItem->requirement = 0;
-        $menuItem->target = 'mod';
-        $menuItem->menu_id = 'escrow0';
-        $menuItem->label = xlt('Escrow');
-        $menuItem->url = $this->getPublicPath() . 'index.php';
-        $menuItem->children = [];
-        $menuItem->acl_req = ['acct', 'rep'];
-        $menuItem->global_req = [];
+        $menuItem = $this->buildReportsMenuItem();
 
         foreach ($menu as $item) {
-            if (($item->menu_id ?? '') === 'repimg') {
-                $item->children[] = $menuItem;
-                break;
+            if (($item->menu_id ?? '') !== 'repimg') {
+                continue;
             }
+
+            if (!isset($item->children) || !is_array($item->children)) {
+                $item->children = [];
+            }
+
+            if (!EscrowMenuItems::containsId($item->children, 'escrow0')) {
+                $item->children[] = $menuItem;
+            }
+            break;
         }
 
         $event->setMenu($menu);
@@ -88,19 +89,33 @@ class Bootstrap
     public function addPatientMenuItem(PatientMenuEvent $event): PatientMenuEvent
     {
         $menu = $event->getMenu();
+        if (!EscrowMenuItems::containsId($menu, 'escrow')) {
+            $menu[] = $this->buildPatientMenuItem();
+        }
 
-        $menuItem = new \stdClass();
-        $menuItem->label = xlt('Escrow');
-        $menuItem->url = $GLOBALS['webroot'] . $this->getPublicPath() . 'index.php';
-        $menuItem->menu_id = 'escrow';
-        $menuItem->target = 'esc';
-        $menuItem->restriction = [];
-        $menuItem->children = [];
-
-        $menu[] = $menuItem;
-        $event->setMenu($menu);
+        // Normalize sibling module/core entries so horizontal nav rendering is safe.
+        $event->setMenu(EscrowMenuItems::normalizePatientMenu($menu));
 
         return $event;
+    }
+
+    /**
+     * Reports main-menu entry.
+     */
+    public function buildReportsMenuItem(): \stdClass
+    {
+        return EscrowMenuItems::reportsItem($this->getPublicPath());
+    }
+
+    /**
+     * Patient horizontal nav entry with PatientMenuRole-required fields.
+     */
+    public function buildPatientMenuItem(): \stdClass
+    {
+        return EscrowMenuItems::patientItem(
+            (string) ($GLOBALS['webroot'] ?? ''),
+            $this->getPublicPath()
+        );
     }
 
     public function registerTemplateEvents(): void

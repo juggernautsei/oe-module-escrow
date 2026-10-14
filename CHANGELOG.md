@@ -2,6 +2,14 @@
 
 All notable changes to `oe-module-escrow` are documented in this file.
 
+## 1.0.1 — 2026-10-14
+
+### Fixed
+
+- Patient menu item now includes `pid` and `on_click` required by `PatientMenuRole::displayHorizNavBarMenu()` (clears undefined-property warnings)
+- Normalize sibling patient-menu entries missing `pid`/`on_click` when Escrow menu listener runs
+- Prevent duplicate Escrow entries when menu events fire more than once
+
 ## 1.0.0 — 2026-10-14
 
 ### Added

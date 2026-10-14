@@ -8,7 +8,7 @@ Migrated from the IVF client report at `interface/reports/escrow`. Built for **O
 |---|---|
 | Package | `juggernautsei/oe-module-escrow` |
 | Namespace | `OpenEMR\Modules\Escrow\` |
-| Module version | 1.0.0 (`version.php`) |
+| Module version | 1.0.1 (`version.php`) |
 | License | GPL-3.0-only |
 | PHP | >= 8.1 |
 
