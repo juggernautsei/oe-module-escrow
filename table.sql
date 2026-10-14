@@ -1,0 +1,7 @@
+-- Escrow module initial schema.
+-- Patient pre-payments and refunds use core OpenEMR tables:
+--   ar_session (adjustment_code: pre_payment, refund_balance)
+--   ar_activity (account_code: PP)
+-- No module-specific tables are required at install.
+-- When a module table is added later, use #IfNotTable / #EndIf here
+-- and bump $v_database in version.php with a matching sql/ upgrade script.

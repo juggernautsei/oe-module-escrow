@@ -1,0 +1,120 @@
+{% extends 'escrow/base.html.twig' %}
+
+{% block head %}
+<style>
+    @media only print {
+        #demoD, #refund { display: none; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div id="container_div" class="{{ oemrContainerClass|attr }}">
+    <div class="row">
+        <div class="col-sm-12">
+            {{ dashboardHeader|raw }}
+            {{ patientMenu|raw }}
+        </div>
+    </div>
+
+    {% if patientId <= 0 %}
+        <div class="alert alert-warning mt-3">{{ 'Select a patient to view escrow activity.'|xlt }}</div>
+    {% endif %}
+
+    {% if errorMessage %}
+        <div class="alert alert-danger mt-3">{{ errorMessage|text }}</div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-sm-6">
+            <button type="button" class="btn btn-primary mt-3" id="demoD" onclick="window.print()">
+                {{ 'Print this page'|xlt }}
+            </button>
+        </div>
+        {% if patientId > 0 and not refund %}
+        <div class="col-sm-6">
+            <button type="button" class="btn btn-primary mt-3" id="refund">
+                {{ 'Refund'|xlt }}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="showescrowpayments" class="row mt-3">
+        <div class="col-sm-12">
+            <table class="table table-striped">
+                <thead>
+                <tr>
+                    <th>{{ 'Transaction ID'|xlt }}</th>
+                    <th>{{ 'Date Deposit/Service'|xlt }}</th>
+                    <th>{{ 'Method'|xlt }}/{{ 'Encounter'|xlt }}</th>
+                    <th>{{ 'Amount'|xlt }}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.session.session_id|text }}</td>
+                        <td>{{ row.session.check_date|text }}</td>
+                        <td>{{ row.session.payment_method|text }}</td>
+                        <td>{{ row.session.pay_total|text }}</td>
+                    </tr>
+                    {% for allocation in row.allocations %}
+                        <tr>
+                            <td></td>
+                            <td>{{ allocation.date|text }}</td>
+                            <td>{{ allocation.encounter|text }}</td>
+                            <td>-{{ allocation.pay_amount|text }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <td>{{ 'Total Payments'|xlt }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>-{{ row.sum_of_payments|text }}</td>
+                    </tr>
+                    {% if row.refund %}
+                        <tr>
+                            <td>{{ 'Refund'|xlt }}</td>
+                            <td>{{ row.refund.check_date|text }}</td>
+                            <td>{{ 'Check:'|xlt }} {{ row.refund.reference|text }}</td>
+                            <td>{{ row.refund.pay_total|text }}</td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td>{{ 'Remaining Balance'|xlt }}</td>
+                        <td></td>
+                        <td></td>
+                        <td>{{ row.remaining_balance|text }}</td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="4">{{ 'No escrow pre-payments found.'|xlt }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function refreshme() {
+        location.reload();
+    }
+    const refundButton = document.getElementById('refund');
+    if (refundButton) {
+        refundButton.addEventListener('click', function () {
+            const url = {{ (webroot ~ modulePublicPath ~ 'refund.php')|js_escape }};
+            dlgopen(url, '_blank', 'modal-sm', 400, '', '', {
+                buttons: [
+                    {text: {{ 'Close'|xlj }}, close: true, style: 'default btn-sm'}
+                ],
+                onClosed: 'refreshme'
+            });
+        });
+    }
+</script>
+{% endblock %}

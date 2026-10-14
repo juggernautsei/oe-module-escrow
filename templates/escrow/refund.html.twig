@@ -1,0 +1,41 @@
+{% extends 'escrow/base.html.twig' %}
+
+{% block body %}
+<div class="container mt-3">
+    <div class="row">
+        <div class="col-12">
+            <h3>{{ 'Refund'|xlt }}</h3>
+
+            {% if statusMessage %}
+                <div class="alert alert-success">{{ statusMessage|text }}</div>
+            {% endif %}
+            {% if statusError %}
+                <div class="alert alert-danger">{{ statusError|text }}</div>
+            {% endif %}
+
+            <form class="form-group" method="post" action="refund.php">
+                <input type="hidden" name="csrf_token_form" value="{{ csrfToken|attr }}">
+
+                <label for="datepicker">{{ 'Check Date'|xlt }}</label>
+                <input type="text" id="datepicker" class="datepicker form-control w-50" name="checkdate">
+
+                <label for="checkno" class="mt-2">{{ 'Check'|xlt }}#</label>
+                <input type="text" id="checkno" class="form-control w-50" name="checkno">
+
+                <label for="amount" class="mt-2">{{ 'Amount'|xlt }}</label>
+                <input type="text" id="amount" class="form-control w-50" name="amount">
+
+                <button type="submit" class="btn btn-primary mt-3">{{ 'Refund'|xlt }}</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(function () {
+        {{ jqueryDateTimePicker('#datepicker', false, false, true)|raw }};
+    });
+</script>
+{% endblock %}
