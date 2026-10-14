@@ -13,16 +13,20 @@
  * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
-// Public module scripts still bootstrap OpenEMR via globals for request context.
-require_once dirname(__FILE__, 4) . '/globals.php';
-
 use OpenEMR\Core\Header;
 use OpenEMR\Core\ModulesClassLoader;
+use OpenEMR\Modules\Escrow\ModulePath;
+
+require_once __DIR__ . '/src/ModulePath.php';
+
+if (empty($GLOBALS['fileroot'])) {
+    require_once ModulePath::globalsPath();
+}
 
 $classLoader = new ModulesClassLoader($GLOBALS['fileroot']);
 $classLoader->registerNamespaceIfNotExists(
     'OpenEMR\\Modules\\Escrow\\',
-    __DIR__ . DIRECTORY_SEPARATOR . 'src'
+    ModulePath::moduleRoot() . DIRECTORY_SEPARATOR . 'src'
 );
 
 $module_config = 1;

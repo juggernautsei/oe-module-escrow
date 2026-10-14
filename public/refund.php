@@ -10,31 +10,50 @@
  * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
-require_once dirname(__DIR__, 4) . '/globals.php';
-
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Csrf\CsrfUtils;
+use OpenEMR\Common\Session\SessionWrapperFactory;
 use OpenEMR\Common\Twig\TwigContainer;
 use OpenEMR\Core\Header;
 use OpenEMR\Core\Kernel;
 use OpenEMR\Core\ModulesClassLoader;
 use OpenEMR\Modules\Escrow\Exception\EscrowModuleException;
+use OpenEMR\Modules\Escrow\ModulePath;
 use OpenEMR\Modules\Escrow\Service\EscrowService;
+
+require_once dirname(__DIR__) . '/src/ModulePath.php';
+
+if (empty($GLOBALS['fileroot'])) {
+    require_once ModulePath::globalsPath();
+}
+
+$moduleRoot = ModulePath::moduleRoot();
 
 $classLoader = new ModulesClassLoader($GLOBALS['fileroot']);
 $classLoader->registerNamespaceIfNotExists(
     'OpenEMR\\Modules\\Escrow\\',
-    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'src'
+    $moduleRoot . DIRECTORY_SEPARATOR . 'src'
 );
 
-if (!AclMain::aclCheckCore('acct', 'bill') && !AclMain::aclCheckCore('acct', 'rep')) {
+$session = SessionWrapperFactory::getInstance()->getActiveSession();
+if (empty($session->get('csrf_private_key'))) {
+    CsrfUtils::setupCsrfKey($session);
+}
+$authUser = (string) ($session->get('authUser') ?? $_SESSION['authUser'] ?? '');
+if (
+    $authUser === ''
+    || (
+        !AclMain::aclCheckCore('acct', 'bill', $authUser)
+        && !AclMain::aclCheckCore('acct', 'rep', $authUser)
+    )
+) {
     echo xlt('Not authorized');
     exit;
 }
 
-$patientId = (int) ($_SESSION['pid'] ?? 0);
-$userId = (int) ($_SESSION['authUserID'] ?? 0);
-$templatePath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'templates';
+$patientId = (int) ($session->get('pid') ?? $_SESSION['pid'] ?? 0);
+$userId = (int) ($session->get('authUserID') ?? $_SESSION['authUserID'] ?? 0);
+$templatePath = $moduleRoot . DIRECTORY_SEPARATOR . 'templates';
 $kernel = $GLOBALS['kernel'] ?? new Kernel();
 $twig = (new TwigContainer($templatePath, $kernel))->getTwig();
 
@@ -42,7 +61,7 @@ $statusMessage = '';
 $statusError = '';
 
 if (!empty($_POST['checkno']) && !empty($_POST['amount']) && !empty($_POST['checkdate'])) {
-    if (!CsrfUtils::verifyCsrfToken($_POST['csrf_token_form'] ?? '')) {
+    if (!CsrfUtils::verifyCsrfToken($_POST['csrf_token_form'] ?? '', $session)) {
         CsrfUtils::csrfNotVerified();
     }
 
@@ -61,7 +80,7 @@ if (!empty($_POST['checkno']) && !empty($_POST['amount']) && !empty($_POST['chec
 echo $twig->render('escrow/refund.html.twig', [
     'title' => xl('Escrow Refund'),
     'setupHeader' => Header::setupHeader(['common', 'datetime-picker'], false),
-    'csrfToken' => CsrfUtils::collectCsrfToken(),
+    'csrfToken' => CsrfUtils::collectCsrfToken($session),
     'statusMessage' => $statusMessage,
     'statusError' => $statusError,
     'datetimepickerScript' => $GLOBALS['srcdir'] . '/js/xl/jquery-datetimepicker-2-5-4.js.php',

@@ -10,10 +10,9 @@
  * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
-require_once dirname(__DIR__, 4) . '/globals.php';
-
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Csrf\CsrfUtils;
+use OpenEMR\Common\Session\SessionWrapperFactory;
 use OpenEMR\Common\Twig\TwigContainer;
 use OpenEMR\Core\Header;
 use OpenEMR\Core\Kernel;
@@ -21,21 +20,41 @@ use OpenEMR\Core\ModulesClassLoader;
 use OpenEMR\Menu\PatientMenuRole;
 use OpenEMR\Modules\Escrow\Controller\EscrowReportController;
 use OpenEMR\Modules\Escrow\Exception\EscrowModuleException;
+use OpenEMR\Modules\Escrow\ModulePath;
 use OpenEMR\OeUI\OemrUI;
+
+require_once dirname(__DIR__) . '/src/ModulePath.php';
+
+if (empty($GLOBALS['fileroot'])) {
+    require_once ModulePath::globalsPath();
+}
+
+$moduleRoot = ModulePath::moduleRoot();
 
 $classLoader = new ModulesClassLoader($GLOBALS['fileroot']);
 $classLoader->registerNamespaceIfNotExists(
     'OpenEMR\\Modules\\Escrow\\',
-    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'src'
+    $moduleRoot . DIRECTORY_SEPARATOR . 'src'
 );
 
-if (!AclMain::aclCheckCore('acct', 'rep') && !AclMain::aclCheckCore('patients', 'demo')) {
+$session = SessionWrapperFactory::getInstance()->getActiveSession();
+if (empty($session->get('csrf_private_key'))) {
+    CsrfUtils::setupCsrfKey($session);
+}
+$authUser = (string) ($session->get('authUser') ?? $_SESSION['authUser'] ?? '');
+if (
+    $authUser === ''
+    || (
+        !AclMain::aclCheckCore('acct', 'rep', $authUser)
+        && !AclMain::aclCheckCore('patients', 'demo', $authUser)
+    )
+) {
     echo xlt('Not authorized');
     exit;
 }
 
-$patientId = (int) ($_SESSION['pid'] ?? 0);
-$templatePath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'templates';
+$patientId = (int) ($session->get('pid') ?? $_SESSION['pid'] ?? 0);
+$templatePath = $moduleRoot . DIRECTORY_SEPARATOR . 'templates';
 $kernel = $GLOBALS['kernel'] ?? new Kernel();
 $twig = (new TwigContainer($templatePath, $kernel))->getTwig();
 
@@ -83,7 +102,7 @@ echo $twig->render('escrow/index.html.twig', [
     'oemrContainerClass' => $oemrUi->oeContainer(),
     'dashboardHeader' => $dashboardHeader,
     'patientMenu' => $patientMenu,
-    'csrfToken' => CsrfUtils::collectCsrfToken(),
+    'csrfToken' => CsrfUtils::collectCsrfToken($session),
     'webroot' => $GLOBALS['webroot'],
     'patientId' => $patientId,
     'errorMessage' => $errorMessage,
